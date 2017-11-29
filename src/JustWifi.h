@@ -63,7 +63,8 @@ typedef struct {
 typedef enum {
     AP_MODE_OFF,
     AP_MODE_ALONE,
-    AP_MODE_BOTH
+    AP_MODE_BOTH,
+    AP_MODE_ONLY_IF_NOT_AVAILABLE
 } justwifi_ap_modes_t;
 
 typedef enum {

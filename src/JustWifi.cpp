@@ -498,7 +498,7 @@ bool JustWifi::setSoftAP(
     const char * gw,
     const char * netmask
 ) {
-
+    
     // Check SSID too long or missing
     if (!ssid || *ssid == 0x00 || strlen(ssid) > 31) {
         return false;
@@ -532,6 +532,17 @@ bool JustWifi::setSoftAP(
         _softap.ip.fromString(ip);
         _softap.gw.fromString(gw);
         _softap.netmask.fromString(netmask);
+    }
+
+    // Configure static options
+    if (_softap.dhcp) {
+        WiFi.softAPConfig(_softap.ip, _softap.gw, _softap.netmask);
+    }
+
+    if (_softap.pass) {
+        WiFi.softAP(_softap.ssid, _softap.pass);
+    } else {
+        WiFi.softAP(_softap.ssid);
     }
 
     return true;
@@ -609,7 +620,10 @@ void JustWifi::loop() {
         reset = false;
 
         if (state == STATE_NOT_CONNECTED) {
-            if (_ap_mode != AP_MODE_OFF) _startAP();
+            // if (_ap_mode != AP_MODE_OFF) _startAP();
+            if(_ap_mode == AP_MODE_ALONE || _ap_mode== AP_MODE_BOTH)  _startAP();
+            if(_ap_mode == AP_MODE_ONLY_IF_NOT_AVAILABLE && _network_list.size() == 0 ) _startAP();
+
             connecting = false;
             _timeout = millis();
         }
@@ -644,6 +658,8 @@ void JustWifi::loop() {
         } else if (state != STATE_CONNECTED) {
             _doCallback(MESSAGE_CONNECTED);
             state = STATE_CONNECTED;
+            // Ensure that Now the device is running in Proper mode
+            if(_ap_mode!=AP_MODE_BOTH) WiFi.mode(WIFI_STA);
         }
 
         reset = true;
