@@ -61,9 +61,11 @@ typedef struct {
 } network_t;
 
 typedef enum {
-    AP_MODE_OFF,
-    AP_MODE_ALONE,
-    AP_MODE_BOTH
+    AP_MODE_OFF,    // AP mode Off only STA
+    AP_MODE_ALONE,  // AP mode only, no STA
+    AP_MODE_BOTH,   // Both AP and STA on
+    AP_MODE_NONE,   // WiFi Off
+    AP_MODE_ONLY_IF_NOT_AVAILABLE
 } justwifi_ap_modes_t;
 
 typedef enum {
@@ -127,14 +129,17 @@ class JustWifi {
         void setConnectTimeout(unsigned long ms);
         void setReconnectTimeout(unsigned long ms = DEFAULT_RECONNECT_INTERVAL);
         void resetReconnectTimeout();
-        void onMessage(TMessageFunction fn);
+        void subscribe(TMessageFunction fn);
         void loop();
+
+        // Deprecated
+        void onMessage(TMessageFunction fn);
 
     private:
 
         std::vector<network_t> _network_list;
+        std::vector<TMessageFunction> _callbacks;
         network_t _softap { NULL, NULL };
-        TMessageFunction _callback = NULL;
         unsigned long _connect_timeout = DEFAULT_CONNECT_TIMEOUT;
         unsigned long _reconnect_timeout = DEFAULT_RECONNECT_INTERVAL;
         unsigned long _timeout = 0;
