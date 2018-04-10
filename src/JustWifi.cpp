@@ -544,11 +544,11 @@ bool JustWifi::setSoftAP(
     }
     
     // Added by arihant
-    if (_softap.pass) {
-        WiFi.softAP(_softap.ssid, _softap.pass);
-    } else {
-        WiFi.softAP(_softap.ssid);
-    }
+    // if (_softap.pass) {
+    //     WiFi.softAP(_softap.ssid, _softap.pass);
+    // } else {
+    //     WiFi.softAP(_softap.ssid);
+    // }
 
     return true;
 }
