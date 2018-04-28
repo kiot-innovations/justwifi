@@ -1,6 +1,6 @@
 /*
 
-JustWifi 1.1.6
+JustWifi 1.1.8
 
 Wifi Manager for ESP8266
 
@@ -93,7 +93,7 @@ justwifi_states_t JustWifi::_connect(uint8_t id) {
         } else {
             WiFi.begin(entry.ssid, entry.pass, entry.channel, entry.bssid);
         }
-        
+
         timeout = millis();
         return (state = STATE_CONNECTING);
 
@@ -502,7 +502,7 @@ bool JustWifi::setSoftAP(
     const char * gw,
     const char * netmask
 ) {
-    
+
     // Check SSID too long or missing
     if (!ssid || *ssid == 0x00 || strlen(ssid) > 31) {
         return false;
@@ -537,21 +537,6 @@ bool JustWifi::setSoftAP(
         _softap.gw.fromString(gw);
         _softap.netmask.fromString(netmask);
     }
-
-    /* 
-    // Commented After the latest update in justWifi
-    // Configure static options
-    if (_softap.dhcp) {
-        WiFi.softAPConfig(_softap.ip, _softap.gw, _softap.netmask);
-    }
-    
-    // Added by arihant
-    if (_softap.pass) {
-        WiFi.softAP(_softap.ssid, _softap.pass);
-    } else {
-        WiFi.softAP(_softap.ssid);
-    }
-    */
 
     return true;
 }
@@ -637,68 +622,59 @@ void JustWifi::loop() {
     static bool connecting = false;
     static bool reset = true;
     static justwifi_states_t state = STATE_NOT_CONNECTED;
-    
-    if (WiFi.getMode() == WIFI_OFF) return;
-    
+
+	if (WiFi.getMode() == WIFI_OFF) return;
+
     if (connecting) {
 
-        // _startSTA may return:
-        //  0: Could not connect
-        //  1: Scanning networks
-        //  2: Connecting
-        //  3: Connection successful
-        state = _startSTA(reset);
-        reset = false;
+		// _startSTA may return:
+		//  0: Could not connect
+		//  1: Scanning networks
+		//  2: Connecting
+		//  3: Connection successful
+		state = _startSTA(reset);
+		reset = false;
 
-        if (state == STATE_NOT_CONNECTED) {
-            // if (_ap_mode != AP_MODE_OFF) _startAP();
-            if(_ap_mode == AP_MODE_ALONE || _ap_mode== AP_MODE_BOTH)  _startAP();
-            if(_ap_mode == AP_MODE_ONLY_IF_NOT_AVAILABLE && _network_list.size() == 0 ) _startAP();
+		if (state == STATE_NOT_CONNECTED) {
+			if (_ap_mode != AP_MODE_OFF) _startAP();
+			connecting = false;
+			_timeout = millis();
+		}
 
-            connecting = false;
-            _timeout = millis();
-        }
+		if (state == STATE_CONNECTED) {
+			if (_ap_mode == AP_MODE_BOTH) _startAP();
+			connecting = false;
+		}
 
-        if (state == STATE_CONNECTED) {
-            if (_ap_mode == AP_MODE_BOTH) _startAP();
-            else {
-                WiFi.mode(WIFI_STA);
-            }
-            connecting = false;
-        }
+	} else {
 
-    } else {
+		wl_status_t status = WiFi.status();
+		if (status == WL_DISCONNECTED
+			|| status == WL_NO_SSID_AVAIL
+			|| status == WL_IDLE_STATUS
+			|| status == WL_CONNECT_FAILED) {
 
-        wl_status_t status = WiFi.status();
-        if (status == WL_DISCONNECTED
-            || status == WL_NO_SSID_AVAIL
-            || status == WL_IDLE_STATUS
-            || status == WL_CONNECT_FAILED) {
+			if (
+				(_timeout == 0)
+				|| (
+					(_reconnect_timeout > 0 )
+					&& (_network_list.size() > 0)
+					&& (millis() - _timeout > _reconnect_timeout)
+				)
+			) {
 
-            if (
-                (_timeout == 0)
-                || (
-                    (_reconnect_timeout > 0 )
-                    && (_network_list.size() > 0)
-                    && (millis() - _timeout > _reconnect_timeout)
-                )
-            ) {
+				connecting = true;
 
-                connecting = true;
+			}
 
-            }
+		// Capture auto-connections
+		} else if (state != STATE_CONNECTED) {
+			_doCallback(MESSAGE_CONNECTED);
+			state = STATE_CONNECTED;
+		}
 
-        // Capture auto-connections
-        } else if (state != STATE_CONNECTED) {
-            _doCallback(MESSAGE_CONNECTED);
-            state = STATE_CONNECTED;
-            // Ensure that Now the device is running in Proper mode
-            if(_ap_mode!=AP_MODE_BOTH) WiFi.mode(WIFI_STA);
-        }
-
-        reset = true;
-
-    }
+		reset = true;
+	}
 
 }
 
