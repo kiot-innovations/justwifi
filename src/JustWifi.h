@@ -72,6 +72,7 @@ typedef enum {
     STATE_NOT_CONNECTED,
     STATE_SCANNING,
     STATE_CONNECTING,
+    STATE_CONNECTED,
     STATE_OFF
 } justwifi_states_t;
 
@@ -103,7 +104,7 @@ class JustWifi {
 
         typedef std::function<void(justwifi_messages_t, char *)> TMessageFunction;
 
-        bool cleanNetworks();
+        void cleanNetworks();
         bool addNetwork(
             const char * ssid,
             const char * pass = NULL,
@@ -120,7 +121,7 @@ class JustWifi {
             const char * netmask = NULL
         );
 
-        bool disconnect();
+        void disconnect();
         bool connected();
         void turnOff();
         void turnOn();
