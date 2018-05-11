@@ -148,6 +148,7 @@ class JustWifi {
         unsigned long _connect_timeout = DEFAULT_CONNECT_TIMEOUT;
         unsigned long _reconnect_timeout = DEFAULT_RECONNECT_INTERVAL;
         unsigned long _timeout = 0;
+        bool _connecting = false;
         justwifi_ap_modes_t _ap_mode = AP_MODE_ALONE;
         bool _scan = false;
         uint8_t _bestID;
@@ -162,6 +163,7 @@ class JustWifi {
         int8_t _scanComplete();
         String _encodingString(uint8_t security);
         void _doCallback(justwifi_messages_t message, char * parameter = NULL);
+        void _overRideConnecting(bool connecting);
 
 };
 

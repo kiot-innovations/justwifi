@@ -29,6 +29,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //------------------------------------------------------------------------------
 
 JustWifi::JustWifi() {
+    _connecting = false;
     _softap.ssid = NULL;
     _timeout = 0;
     snprintf_P(_hostname, sizeof(_hostname), PSTR("ESP_%06X"), ESP.getChipId());
@@ -419,6 +420,10 @@ void JustWifi::_doCallback(justwifi_messages_t message, char * parameter) {
     }
 }
 
+void JustWifi::_overRideConnecting(bool connecting){
+    _connecting = connecting;
+}
+
 //------------------------------------------------------------------------------
 // CONFIGURATION METHODS
 //------------------------------------------------------------------------------
@@ -601,8 +606,10 @@ bool JustWifi::connected() {
 void JustWifi::disconnect() {
     _timeout = 0;
     WiFi.disconnect();
+    _overRideConnecting(false);
     _doCallback(MESSAGE_DISCONNECTED);
 }
+
 
 void JustWifi::turnOff() {
 	WiFi.disconnect();
@@ -634,13 +641,13 @@ void JustWifi::scanNetworks(bool scan) {
 
 void JustWifi::loop() {
 
-    static bool connecting = false;
+    // static bool _connecting = false;
     static bool reset = true;
     static justwifi_states_t state = STATE_NOT_CONNECTED;
     
     if (WiFi.getMode() == WIFI_OFF) return;
     
-    if (connecting) {
+    if (_connecting) {
 
         // _startSTA may return:
         //  0: Could not connect
@@ -655,7 +662,7 @@ void JustWifi::loop() {
             if(_ap_mode == AP_MODE_ALONE || _ap_mode== AP_MODE_BOTH)  _startAP();
             if(_ap_mode == AP_MODE_ONLY_IF_NOT_AVAILABLE && _network_list.size() == 0 ) _startAP();
 
-            connecting = false;
+            _connecting = false;
             _timeout = millis();
         }
 
@@ -664,7 +671,7 @@ void JustWifi::loop() {
             else {
                 WiFi.mode(WIFI_STA);
             }
-            connecting = false;
+            _connecting = false;
         }
 
     } else {
@@ -684,7 +691,7 @@ void JustWifi::loop() {
                 )
             ) {
 
-                connecting = true;
+                _connecting = true;
 
             }
 
