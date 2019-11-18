@@ -575,6 +575,7 @@ void JustWifi::resetReconnectTimeout() {
 
 void JustWifi::setHostname(const char * hostname) {
     strncpy(_hostname, hostname, sizeof(_hostname));
+    _hostname[sizeof(_hostname) - 1] = '\0'; // Safety
     WiFi.hostname(_hostname);
 }
 
