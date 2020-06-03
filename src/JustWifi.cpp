@@ -60,8 +60,8 @@ justwifi_states_t JustWifi::_connect(uint8_t id) {
 
     // No state or previous network failed
     if (state == STATE_NOT_CONNECTED) {
-
-        WiFi.persistent(false);
+	// Due to this wierd issue https://github.com/kiot-innovations/justwifi/issues/1 , temporay we have to disable this, it can also lead to bad issues like bricking of the device sometimes. 
+	//         WiFi.persistent(false);
 
         // See https://github.com/esp8266/Arduino/issues/2186
         if (strncmp_P(ESP.getSdkVersion(), PSTR("1.5.3"), 5) == 0) {
