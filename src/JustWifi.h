@@ -26,11 +26,16 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <functional>
 #include <vector>
+#if defined(ARDUINO_ARCH_ESP32)
+#include <WiFi.h>
+#elif defined(ARDUINO_ARCH_ESP8266)
 #include <ESP8266WiFi.h>
-
 extern "C" {
-  #include "user_interface.h"
+    #include "user_interface.h"
 }
+#else
+#error "Non supported architecture!"
+#endif
 
 #define DEFAULT_CONNECT_TIMEOUT     10000
 #define DEFAULT_RECONNECT_INTERVAL  60000

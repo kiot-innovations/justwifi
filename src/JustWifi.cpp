@@ -24,6 +24,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "JustWifi.h"
 #include <functional>
 
+#if defined(ARDUINO_ARCH_ESP32)
+extern "C" {
+    #include <esp_wifi.h>
+}
+#endif
+
 //------------------------------------------------------------------------------
 // CONSTRUCTOR
 //------------------------------------------------------------------------------
@@ -32,7 +38,13 @@ JustWifi::JustWifi() {
     _connecting = false;
     _softap.ssid = NULL;
     _timeout = 0;
-    snprintf_P(_hostname, sizeof(_hostname), PSTR("ESP_%06X"), ESP.getChipId());
+    uint32_t chip_id;
+    #if defined(ARDUINO_ARCH_ESP32)
+        chip_id = ESP.getEfuseMac() & 0xFFFFFFFF;
+    #else
+        chip_id = ESP.getChipId();
+    #endif
+    snprintf_P(_hostname, sizeof(_hostname), PSTR("ESP-%06X"), chip_id);
 }
 
 JustWifi::~JustWifi() {
@@ -172,10 +184,19 @@ void JustWifi::_sortByRSSI() {
 }
 
 String JustWifi::_encodingString(uint8_t security) {
+#if defined(ARDUINO_ARCH_ESP32)
+    if (security == WIFI_AUTH_WEP) return String("WEP  ");
+    if (security == WIFI_AUTH_WPA_PSK) return String("WPA  ");
+    if (security == WIFI_AUTH_WPA2_PSK) return String("WPA2 ");
+    if (security == WIFI_AUTH_WPA_WPA2_PSK) return String("WPA* ");
+    if (security == WIFI_AUTH_WPA2_ENTERPRISE) return String("WPA2E");
+    if (security == WIFI_AUTH_MAX) return String("MAX  ");
+#else
     if (security == ENC_TYPE_WEP) return String("WEP ");
     if (security == ENC_TYPE_TKIP) return String("WPA ");
     if (security == ENC_TYPE_CCMP) return String("WPA2");
     if (security == ENC_TYPE_AUTO) return String("AUTO");
+#endif
     return String("OPEN");
 }
 
@@ -198,7 +219,12 @@ uint8_t JustWifi::_populate(uint8_t networkCount) {
     // Populate defined networks with scan data
     for (int8_t i = 0; i < networkCount; ++i) {
 
-        WiFi.getNetworkInfo(i, ssid_scan, sec_scan, rssi_scan, BSSID_scan, chan_scan, hidden_scan);
+         #if defined(ARDUINO_ARCH_ESP32)
+            WiFi.getNetworkInfo(i, ssid_scan, sec_scan, rssi_scan, BSSID_scan, chan_scan);
+        #else
+            bool hidden_scan;
+            WiFi.getNetworkInfo(i, ssid_scan, sec_scan, rssi_scan, BSSID_scan, chan_scan, hidden_scan);
+        #endif
 
         bool known = false;
 
@@ -209,7 +235,11 @@ uint8_t JustWifi::_populate(uint8_t networkCount) {
             if (ssid_scan.equals(entry->ssid)) {
 
                 // Check security
-                if ((sec_scan != ENC_TYPE_NONE) && (entry->pass == NULL)) continue;
+                #if defined(ARDUINO_ARCH_ESP32)
+                    if ((sec_scan != WIFI_AUTH_OPEN) && (entry->pass == NULL)) continue;
+                #else
+                    if ((sec_scan != ENC_TYPE_NONE) && (entry->pass == NULL)) continue;
+                #endif
 
                 // In case of several networks with the same SSID
                 // we want to get the one with the best RSSI
@@ -575,7 +605,11 @@ void JustWifi::resetReconnectTimeout() {
 void JustWifi::setHostname(const char * hostname) {
     strncpy(_hostname, hostname, sizeof(_hostname));
     _hostname[sizeof(_hostname) - 1] = '\0'; // Safety
-    WiFi.hostname(_hostname);
+    #if defined(ARDUINO_ARCH_ESP32)
+        WiFi.setHostname(_hostname);
+    #else
+        WiFi.hostname(_hostname);
+    #endif
 }
 
 void JustWifi::subscribe(TMessageFunction fn) {
