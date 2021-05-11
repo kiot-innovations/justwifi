@@ -79,7 +79,11 @@ justwifi_states_t JustWifi::_connect(uint8_t id) {
         delay(200);
 	    
         WiFi.enableSTA(true);
+#if defined(ARDUINO_ARCH_ESP32)
+        WiFi.setHostname(_hostname);
+#else
         WiFi.hostname(_hostname);
+#endif
 
         // Configure static options
         if (!entry.dhcp) {
@@ -648,13 +652,21 @@ void JustWifi::disconnect() {
 void JustWifi::turnOff() {
 	WiFi.disconnect();
 	WiFi.mode(WIFI_OFF);
+#if defined(ARDUINO_ARCH_ESP32)
+    //TODO
+#else
 	WiFi.forceSleepBegin();
+#endif
 	delay(1);
     _doCallback(MESSAGE_TURNING_OFF);
 }
 
 void JustWifi::turnOn() {
+#if defined(ARDUINO_ARCH_ESP32)
+    //TODO
+#else
 	WiFi.forceSleepWake();
+#endif
 	delay(1);
 	WiFi.mode(WIFI_STA);
 	setReconnectTimeout(0);
