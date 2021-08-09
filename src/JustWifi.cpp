@@ -47,28 +47,46 @@ justwifi_states_t JustWifi::_connect(uint8_t id) {
 
     static uint8_t networkID;
     static justwifi_states_t state = STATE_NOT_CONNECTED;
-    static unsigned long timeout;
+    static unsigned long timeout = 0;
 
+    // Get network
+    network_t entry = _network_list[networkID];
     // Reset connection process
     if (id != 0xFF) {
         state = STATE_NOT_CONNECTED;
         networkID = id;
     }
-
-    // Get network
-    network_t entry = _network_list[networkID];
+    
 
     // No state or previous network failed
     if (state == STATE_NOT_CONNECTED) {
-	// Due to this wierd issue https://github.com/kiot-innovations/justwifi/issues/1 , temporay we have to disable this, it can also lead to bad issues like bricking of the device sometimes. 
-	WiFi.persistent(false);
-	// See the issue https://github.com/kiot-innovations/justwifi/issues/1
-	WiFi.mode(WIFI_OFF);
-        delay(200);
-	    
-        WiFi.enableSTA(true);
+        if(_fasterConnect) {
+            if(WiFi.isConnected()){
+                // Autoconnect only if DHCP, since it doesn't store static IP data
+                // Serial.println("Connected");
+                // Serial.println(WiFi.status());
+                // WiFi.setAutoConnect(true);
+                // WiFi.setAutoReconnect(true);
+                _doCallback(MESSAGE_CONNECTED);
+                return (state = STATE_CONNECTED);
+            } else {
+                if(WiFi.SSID() == entry.ssid && strcmp(WiFi.psk().c_str(), entry.pass) == 0 && wifi_station_get_connect_status() == STATION_CONNECTING){
+                    return (state = STATE_CONNECTING);
+                }
+            }
+            WiFi.mode(WIFI_STA); 
+        } else{
+            // Due to this wierd issue https://github.com/kiot-innovations/justwifi/issues/1 , temporay we have to disable this, it can also lead to bad issues like bricking of the device sometimes. 
+            WiFi.persistent(false);
+            // See the issue https://github.com/kiot-innovations/justwifi/issues/1
+            WiFi.mode(WIFI_OFF);
+            delay(200);
+            
+            WiFi.enableSTA(true);
+        }
+	
         WiFi.hostname(_hostname);
-
+        // WiFi.setOutputPower(0);
         // Configure static options
         if (!entry.dhcp) {
             WiFi.config(entry.ip, entry.gw, entry.netmask, entry.dns);
@@ -87,13 +105,37 @@ justwifi_states_t JustWifi::_connect(uint8_t id) {
             );
 		    _doCallback(MESSAGE_CONNECTING, buffer);
         }
-
+        bool reInitWiFi = true;
+        if(_fasterConnect){
+            // || (memcmp(entry.bssid , WiFi.BSSID()) != 0) )
+            if(WiFi.SSID() != entry.ssid ){
+                reInitWiFi = true;
+            }else{
+                reInitWiFi = false;
+            }
+        }
+        // Serial.print("BSSID: ");
+        // Serial.println(WiFi.BSSIDstr());
+        // Serial.print("Channel: ");
+        // Serial.println(WiFi.channel());
+        // Serial.println(entry.channel);
+        
+        // if(reInitWiFi){
         if (entry.channel == 0) {
             WiFi.begin(entry.ssid, entry.pass);
+            // Serial.println("Usinfg only ssid and password");
         } else {
-            WiFi.begin(entry.ssid, entry.pass, entry.channel, entry.bssid);
+            // Serial.println("Using Channel and Bssid");
+            WiFi.begin(entry.ssid, entry.pass, entry.channel, entry.bssid, true); 
         }
-        
+        // } else{
+        //     WiFi.begin();
+        // }
+        if(_fasterConnect){
+            WiFi.persistent(true);
+            WiFi.setAutoConnect(true);
+            WiFi.setAutoReconnect(true);
+        }
         timeout = millis();
         return (state = STATE_CONNECTING);
 
@@ -103,8 +145,12 @@ justwifi_states_t JustWifi::_connect(uint8_t id) {
     if (WiFi.status() == WL_CONNECTED) {
 
         // Autoconnect only if DHCP, since it doesn't store static IP data
-        WiFi.setAutoConnect(entry.dhcp);
-
+        if(_fasterConnect){
+            WiFi.setAutoConnect(true);
+        }else{
+            WiFi.setAutoConnect(entry.dhcp);
+        }
+        
         WiFi.setAutoReconnect(true);
         _doCallback(MESSAGE_CONNECTED);
         return (state = STATE_CONNECTED);
@@ -114,13 +160,14 @@ justwifi_states_t JustWifi::_connect(uint8_t id) {
     // Check timeout
     if (millis() - timeout > _connect_timeout) {
         _doCallback(MESSAGE_CONNECT_FAILED, entry.ssid);
+        // Serial.print("TST4 : ");
+        // Serial.println(state);
         return (state = STATE_NOT_CONNECTED);
     }
 
     // Still waiting
     _doCallback(MESSAGE_CONNECT_WAITING);
     return state;
-
 }
 
 void JustWifi::_sortByRSSI() {
@@ -311,11 +358,17 @@ justwifi_states_t JustWifi::_startSTA(bool reset) {
     static justwifi_states_t state = STATE_NOT_CONNECTED;
 
     if (_network_list.size() == 0) {
+        // Serial.print("TST5 : ");
+        // Serial.println(state);
         return (state = STATE_NOT_CONNECTED);
     }
 
     // Reset process
-    if (reset) state = STATE_NOT_CONNECTED;
+    if (reset) {
+        // Serial.print("TST6 : ");
+        // Serial.println(state);
+        state = STATE_NOT_CONNECTED;
+    }
 
     // Starting over
     if (state == STATE_NOT_CONNECTED) {
@@ -358,17 +411,23 @@ justwifi_states_t JustWifi::_startSTA(bool reset) {
         state = _connect();
 
         if (state != STATE_NOT_CONNECTED) {
+            // Serial.print("TST : ");
+            // Serial.println(state);
             return state;
         }
 
         if (_scan) {
             currentID = _network_list[currentID].next;
             if (currentID == 0xFF) {
+                // Serial.print("TST1 : ");
+                // Serial.println(state);
                 return (state = STATE_NOT_CONNECTED);
             }
         } else {
             currentID++;
             if (currentID == _network_list.size()) {
+                // Serial.print("TST2 : ");
+                // Serial.println(state);
                 return (state = STATE_NOT_CONNECTED);
             }
         }
@@ -442,7 +501,9 @@ bool JustWifi::addNetwork(
     const char * ip,
     const char * gw,
     const char * netmask,
-    const char * dns
+    const char * dns,
+    uint8_t * bssid,
+    unsigned char channel
 ) {
 
     network_t new_network;
@@ -487,10 +548,13 @@ bool JustWifi::addNetwork(
         new_network.dns.fromString(dns);
     }
 
+    if(bssid && *bssid != 0x00) {
+        memcpy(new_network.bssid, bssid, sizeof(new_network.bssid));
+    }
     // Defaults
     new_network.rssi = 0;
     new_network.security = 0;
-    new_network.channel = 0;
+    new_network.channel = channel? (uint8_t)channel : 0;
     new_network.next = 0xFF;
 
     // Store data
@@ -669,7 +733,9 @@ void JustWifi::loop() {
         if (state == STATE_CONNECTED) {
             if (_ap_mode == AP_MODE_BOTH) _startAP();
             else {
-                WiFi.mode(WIFI_STA);
+                if(!_fasterConnect){
+                    WiFi.mode(WIFI_STA);
+                }
             }
             _connecting = false;
         }

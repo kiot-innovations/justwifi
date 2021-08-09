@@ -111,7 +111,9 @@ class JustWifi {
             const char * ip = NULL,
             const char * gw = NULL,
             const char * netmask = NULL,
-            const char * dns = NULL
+            const char * dns = NULL,
+            uint8_t* bssid = NULL,
+            unsigned char channel = 0
         );
         bool setSoftAP(
             const char * ssid,
@@ -139,6 +141,7 @@ class JustWifi {
 
         // Deprecated
         void onMessage(TMessageFunction fn);
+        void fastConnect(bool value) { _fasterConnect = value; };
 
     private:
 
@@ -149,6 +152,7 @@ class JustWifi {
         unsigned long _reconnect_timeout = DEFAULT_RECONNECT_INTERVAL;
         unsigned long _timeout = 0;
         bool _connecting = false;
+        bool _fasterConnect = false;
         justwifi_ap_modes_t _ap_mode = AP_MODE_ALONE;
         bool _scan = false;
         uint8_t _bestID;
@@ -164,6 +168,8 @@ class JustWifi {
         String _encodingString(uint8_t security);
         void _doCallback(justwifi_messages_t message, char * parameter = NULL);
         void _overRideConnecting(bool connecting);
+
+        
 
 };
 
